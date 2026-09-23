@@ -168,6 +168,17 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
             <span className="text-2xl font-bold text-primary">£{totalAmount.toFixed(2)}</span>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium mb-1">Notes (Optional)</label>
+            <textarea 
+              value={notes} 
+              onChange={e => setNotes(e.target.value)} 
+              rows={2}
+              className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary resize-none" 
+              placeholder="Any additional details..." 
+            />
+          </div>
+
           <button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors mt-2">
             {loading ? 'Saving...' : 'Save Purchase'}
           </button>

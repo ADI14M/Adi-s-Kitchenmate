@@ -20,6 +20,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialize: async () => {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) throw error;
       
       set({ 
         session, 

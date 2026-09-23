@@ -48,9 +48,19 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   addItem: async (item) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Scrub empty strings for optional UUIDs
+      const payload = { 
+        ...item, 
+        user_id: user.id,
+        category_id: item.category_id === '' ? null : item.category_id 
+      };
+
       const { data, error } = await supabase
         .from('inventory_items')
-        .insert([item])
+        .insert([payload])
         .select()
         .single();
         

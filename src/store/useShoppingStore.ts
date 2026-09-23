@@ -58,9 +58,19 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
         return;
       }
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      const payload = { 
+        ...item, 
+        user_id: user.id,
+        is_purchased: false,
+        inventory_item_id: item.inventory_item_id === '' ? null : item.inventory_item_id 
+      };
+
       const { data, error } = await supabase
         .from('shopping_items')
-        .insert([{ ...item, is_purchased: false }])
+        .insert([payload])
         .select()
         .single();
         

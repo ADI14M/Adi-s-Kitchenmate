@@ -50,12 +50,19 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
 
   recordPurchase: async (store, date, total, notes, items) => {
     try {
-      const { data, error } = await supabase.rpc('record_purchase', {
+      // Scrub empty strings for optional UUIDs
+      const scrubbedItems = items.map(item => ({
+        ...item,
+        shopping_item_id: item.shopping_item_id === '' ? null : item.shopping_item_id,
+        inventory_item_id: item.inventory_item_id === '' ? null : item.inventory_item_id
+      }));
+
+      const { error } = await supabase.rpc('record_purchase', {
         p_store: store,
         p_purchase_date: date,
         p_total_amount: total,
         p_notes: notes || null,
-        p_items: items
+        p_items: scrubbedItems
       });
       
       if (error) throw error;

@@ -64,7 +64,7 @@ export default function Inventory() {
         <AddItemModal 
           onClose={() => setShowAddModal(false)}
           onAdd={async (item) => {
-            await addItem({ ...item, user_id: '' }); // user_id is handled by RLS and defaults, but store needs it for type. Supabase client auto sets auth.uid() usually. Actually, user_id is required in DB schema, we should pass it or let DB handle it. We will pass it in the insert if needed, but RLS allows insert only if user_id = auth.uid(), so we should fetch session or let Supabase default. Wait, the schema doesn't have a DEFAULT for user_id! We must provide user_id. Let's fix the store or pass it.
+            await addItem(item);
             setShowAddModal(false);
           }}
         />

@@ -1,9 +1,7 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { Home, List, ShoppingCart, Receipt, BarChart3, Menu } from 'lucide-react';
-import { useState } from 'react';
 
 export default function Layout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navItems = [
     { to: '/', label: 'Home', icon: Home },

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useShoppingStore } from '../store/useShoppingStore';
-import type { ShoppingItem } from '../store/useShoppingStore';
-import { Check, Trash2, Plus, ShoppingBag, X } from 'lucide-react';
+import { Check, ShoppingBag, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Shopping() {
