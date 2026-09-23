@@ -1,0 +1,70 @@
+import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
+
+export interface PurchaseItemPayload {
+  inventory_item_id?: string | null;
+  name: string;
+  quantity: number;
+  unit?: string;
+  unit_price: number;
+  total_price: number;
+  shopping_item_id?: string | null;
+}
+
+export interface PurchaseRecord {
+  id: string;
+  store: string;
+  purchase_date: string;
+  total_amount: number;
+  notes?: string;
+  created_at: string;
+}
+
+interface PurchaseState {
+  purchases: PurchaseRecord[];
+  loading: boolean;
+  error: string | null;
+  fetchPurchases: () => Promise<void>;
+  recordPurchase: (store: string, date: string, total: number, notes: string, items: PurchaseItemPayload[]) => Promise<void>;
+}
+
+export const usePurchaseStore = create<PurchaseState>((set, get) => ({
+  purchases: [],
+  loading: false,
+  error: null,
+
+  fetchPurchases: async () => {
+    set({ loading: true, error: null });
+    try {
+      const { data, error } = await supabase
+        .from('purchases')
+        .select('*')
+        .order('purchase_date', { ascending: false });
+        
+      if (error) throw error;
+      set({ purchases: data as PurchaseRecord[], loading: false });
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+    }
+  },
+
+  recordPurchase: async (store, date, total, notes, items) => {
+    try {
+      const { data, error } = await supabase.rpc('record_purchase', {
+        p_store: store,
+        p_purchase_date: date,
+        p_total_amount: total,
+        p_notes: notes || null,
+        p_items: items
+      });
+      
+      if (error) throw error;
+      
+      // Optionally re-fetch after recording
+      await get().fetchPurchases();
+    } catch (err: any) {
+      console.error(err);
+      throw err;
+    }
+  }
+}));
