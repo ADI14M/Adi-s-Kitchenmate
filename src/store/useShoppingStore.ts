@@ -17,7 +17,7 @@ interface ShoppingState {
   loading: boolean;
   error: string | null;
   fetchItems: () => Promise<void>;
-  addItem: (item: Partial<ShoppingItem>) => Promise<void>;
+  addItem: (item: Partial<ShoppingItem>) => Promise<{ action: 'added' | 'merged', item: ShoppingItem }>;
   updateQuantity: (id: string, quantity: number) => Promise<void>;
   togglePurchased: (id: string, is_purchased: boolean) => Promise<void>;
   clearPurchased: () => Promise<void>;
@@ -45,21 +45,36 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
 
   addItem: async (item) => {
     try {
-      // First check if it already exists and is not purchased
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Check if it already exists (purchased or active)
       const existing = get().items.find(i => 
         (i.name.toLowerCase() === item.name?.toLowerCase() || 
-         (i.inventory_item_id && i.inventory_item_id === item.inventory_item_id)) 
-         && !i.is_purchased
+         (i.inventory_item_id && i.inventory_item_id === item.inventory_item_id))
       );
       
       if (existing) {
-        // Just update quantity
-        await get().updateQuantity(existing.id, existing.quantity + (item.quantity || 1));
-        return;
-      }
+        // If it was already purchased, start fresh with the new quantity. Otherwise add to existing quantity.
+        const newQuantity = existing.is_purchased 
+          ? (item.quantity || 1) 
+          : Number(existing.quantity) + (item.quantity || 1);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
+        const { data, error } = await supabase
+          .from('shopping_items')
+          .update({ quantity: newQuantity, is_purchased: false })
+          .eq('id', existing.id)
+          .select()
+          .single();
+          
+        if (error) throw error;
+        
+        const mergedItem = data as ShoppingItem;
+        // Update local state by replacing the existing item and ensuring it's at the top if we want, or just update in place.
+        set({ items: get().items.map(i => i.id === existing.id ? mergedItem : i) });
+        
+        return { action: 'merged', item: mergedItem };
+      }
 
       const payload = { 
         ...item, 
@@ -76,6 +91,7 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
         
       if (error) throw error;
       set({ items: [data as ShoppingItem, ...get().items] });
+      return { action: 'added', item: data as ShoppingItem };
     } catch (err: any) {
       console.error(err);
       throw err;

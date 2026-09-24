@@ -107,7 +107,10 @@ export default function Shopping() {
         <AddShoppingModal 
           onClose={() => setShowAddModal(false)}
           onAdd={async (item) => {
-            await addItem(item);
+            const result = await addItem(item);
+            if (result.action === 'merged') {
+              alert(`"${result.item.name}" was already on your list. The quantity was updated to ${result.item.quantity} ${result.item.unit || 'pcs'}.`);
+            }
             setShowAddModal(false);
           }}
         />
