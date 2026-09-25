@@ -144,7 +144,7 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
                     <input required placeholder="Item name" value={item.name} onChange={e => handleItemChange(i, 'name', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
                   </div>
                   <div className="w-16">
-                    <input required type="number" min="0.1" step="0.1" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(i, 'quantity', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
+                    <input required type="number" min="0.001" step="0.001" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(i, 'quantity', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
                   </div>
                   <div className="w-16">
                     <input placeholder="Unit" value={item.unit} onChange={e => handleItemChange(i, 'unit', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />

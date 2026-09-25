@@ -169,7 +169,7 @@ function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: a
           <div className="flex gap-4">
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Quantity</label>
-              <input required type="number" min="0" step="0.1" value={quantity} onChange={e => setQuantity(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary" />
+              <input required type="number" min="0" step="0.001" value={quantity} onChange={e => setQuantity(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary" />
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Unit</label>
@@ -179,7 +179,7 @@ function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: a
 
           <div>
             <label className="block text-sm font-medium mb-1">Min Quantity (Low Stock Alert)</label>
-            <input required type="number" min="0" step="0.1" value={minQuantity} onChange={e => setMinQuantity(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary" />
+            <input required type="number" min="0" step="0.001" value={minQuantity} onChange={e => setMinQuantity(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary" />
           </div>
 
           <button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors mt-2">
