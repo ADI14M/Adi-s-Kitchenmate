@@ -48,7 +48,7 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // 1. Resolve inventory_item_id if not explicitly provided but item exists in inventory
+      // Resolve inventory_item_id if not explicitly provided but item exists in inventory
       let finalInventoryItemId = item.inventory_item_id || null;
       if (!finalInventoryItemId && item.name) {
         const { data: invItems } = await supabase
@@ -62,72 +62,37 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
         }
       }
 
-      // 2. Query the database directly to ensure we find any existing row 
-      // MUST search by BOTH user_id and inventory_item_id WITHOUT filtering out purchased rows.
-      let query = supabase
-        .from('shopping_items')
-        .select('*')
-        .eq('user_id', user.id);
-        
-      if (finalInventoryItemId) {
-        query = query.eq('inventory_item_id', finalInventoryItemId);
-      } else {
-        query = query.is('inventory_item_id', null).ilike('name', item.name!);
-      }
-      
-      const { data: existingItems, error: searchError } = await query;
-      if (searchError) throw searchError;
-      
-      const existing = existingItems && existingItems.length > 0 ? existingItems[0] : null;
-      
-      if (existing) {
-        // 3. If an existing row is found, UPDATE that row instead of INSERTING another row.
-        const newQuantity = existing.is_purchased 
-          ? (item.quantity || 1) 
-          : Number(existing.quantity) + (item.quantity || 1);
+      // Call the atomic RPC to safely insert or merge
+      const { data, error } = await supabase.rpc('add_shopping_item', {
+        p_name: item.name,
+        p_quantity: item.quantity || 1,
+        p_unit: item.unit || null,
+        p_inventory_item_id: finalInventoryItemId
+      });
 
-        const { data, error } = await supabase
-          .from('shopping_items')
-          .update({ quantity: newQuantity, is_purchased: false })
-          .eq('id', existing.id)
-          .select()
-          .single();
-          
-        if (error) throw error;
-        
-        const mergedItem = data as ShoppingItem;
-        // Update local state securely
-        set(state => ({ 
-          items: state.items.some(i => i.id === existing.id)
-            ? state.items.map(i => i.id === existing.id ? mergedItem : i)
-            : [mergedItem, ...state.items]
-        }));
-        
-        return { action: 'merged', item: mergedItem };
-      }
-
-      // 4. Only INSERT when absolutely no row exists for that user + inventory item.
-      const payload = { 
-        ...item, 
-        user_id: user.id,
-        is_purchased: false,
-        inventory_item_id: finalInventoryItemId 
-      };
-
-      const { data, error } = await supabase
-        .from('shopping_items')
-        .insert([payload])
-        .select()
-        .single();
-        
       if (error) throw error;
       
-      set(state => ({
-        items: state.items.some(i => i.id === data.id) 
-          ? state.items 
-          : [data as ShoppingItem, ...state.items]
-      }));
-      return { action: 'added', item: data as ShoppingItem };
+      const resultAction = data.action as 'added' | 'merged';
+      const resultItem = data.item as ShoppingItem;
+
+      set(state => {
+        // If merged, replace the existing item
+        if (resultAction === 'merged') {
+          return {
+            items: state.items.some(i => i.id === resultItem.id)
+              ? state.items.map(i => i.id === resultItem.id ? resultItem : i)
+              : [resultItem, ...state.items]
+          };
+        }
+        // If added, insert at top
+        return {
+          items: state.items.some(i => i.id === resultItem.id) 
+            ? state.items 
+            : [resultItem, ...state.items]
+        };
+      });
+
+      return { action: resultAction, item: resultItem };
     } catch (err: any) {
       console.error(err);
       throw err;
