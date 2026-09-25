@@ -1,18 +1,35 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useInventoryStore } from '../store/useInventoryStore';
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Good Morning";
+  if (hour >= 12 && hour < 17) return "Good Afternoon";
+  if (hour >= 17 && hour < 21) return "Good Evening";
+  return "Good Night";
+}
 
 export default function Dashboard() {
   const { items, fetchItems, loading } = useInventoryStore();
+  const [greeting, setGreeting] = useState(getGreeting());
 
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
 
+  useEffect(() => {
+    // Lightweight interval to check if greeting should update (every 1 minute)
+    const interval = setInterval(() => {
+      setGreeting(getGreeting());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header>
         <h1 className="text-2xl font-bold uppercase tracking-tight text-gray-500 dark:text-gray-400">
-          Good Evening, Adi 👋
+          {greeting}, Adi 👋
         </h1>
       </header>
       
