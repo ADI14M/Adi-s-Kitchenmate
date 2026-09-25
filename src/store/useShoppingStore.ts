@@ -48,14 +48,40 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // Check if it already exists (purchased or active)
-      const existing = get().items.find(i => 
-        (i.name.toLowerCase() === item.name?.toLowerCase() || 
-         (i.inventory_item_id && i.inventory_item_id === item.inventory_item_id))
-      );
+      // 1. Resolve inventory_item_id if not explicitly provided but item exists in inventory
+      let finalInventoryItemId = item.inventory_item_id || null;
+      if (!finalInventoryItemId && item.name) {
+        const { data: invItems } = await supabase
+          .from('inventory_items')
+          .select('id')
+          .ilike('name', item.name)
+          .eq('user_id', user.id)
+          .limit(1);
+        if (invItems && invItems.length > 0) {
+          finalInventoryItemId = invItems[0].id;
+        }
+      }
+
+      // 2. Query the database directly to ensure we find any existing row 
+      // MUST search by BOTH user_id and inventory_item_id WITHOUT filtering out purchased rows.
+      let query = supabase
+        .from('shopping_items')
+        .select('*')
+        .eq('user_id', user.id);
+        
+      if (finalInventoryItemId) {
+        query = query.eq('inventory_item_id', finalInventoryItemId);
+      } else {
+        query = query.is('inventory_item_id', null).ilike('name', item.name!);
+      }
+      
+      const { data: existingItems, error: searchError } = await query;
+      if (searchError) throw searchError;
+      
+      const existing = existingItems && existingItems.length > 0 ? existingItems[0] : null;
       
       if (existing) {
-        // If it was already purchased, start fresh with the new quantity. Otherwise add to existing quantity.
+        // 3. If an existing row is found, UPDATE that row instead of INSERTING another row.
         const newQuantity = existing.is_purchased 
           ? (item.quantity || 1) 
           : Number(existing.quantity) + (item.quantity || 1);
@@ -70,17 +96,22 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
         if (error) throw error;
         
         const mergedItem = data as ShoppingItem;
-        // Update local state by replacing the existing item and ensuring it's at the top if we want, or just update in place.
-        set({ items: get().items.map(i => i.id === existing.id ? mergedItem : i) });
+        // Update local state securely
+        set(state => ({ 
+          items: state.items.some(i => i.id === existing.id)
+            ? state.items.map(i => i.id === existing.id ? mergedItem : i)
+            : [mergedItem, ...state.items]
+        }));
         
         return { action: 'merged', item: mergedItem };
       }
 
+      // 4. Only INSERT when absolutely no row exists for that user + inventory item.
       const payload = { 
         ...item, 
         user_id: user.id,
         is_purchased: false,
-        inventory_item_id: item.inventory_item_id === '' ? null : item.inventory_item_id 
+        inventory_item_id: finalInventoryItemId 
       };
 
       const { data, error } = await supabase
@@ -90,7 +121,12 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
         .single();
         
       if (error) throw error;
-      set({ items: [data as ShoppingItem, ...get().items] });
+      
+      set(state => ({
+        items: state.items.some(i => i.id === data.id) 
+          ? state.items 
+          : [data as ShoppingItem, ...state.items]
+      }));
       return { action: 'added', item: data as ShoppingItem };
     } catch (err: any) {
       console.error(err);
