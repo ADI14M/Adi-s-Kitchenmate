@@ -150,7 +150,7 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
                     <input placeholder="Unit" value={item.unit} onChange={e => handleItemChange(i, 'unit', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
                   </div>
                   <div className="w-20">
-                    <input required type="number" min="0" step="0.01" placeholder="Price £" value={item.unit_price} onChange={e => handleItemChange(i, 'unit_price', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
+                    <input required type="number" min="0" step="0.001" placeholder="Price £" value={item.unit_price} onChange={e => handleItemChange(i, 'unit_price', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
                   </div>
                   <div className="w-20">
                     <div className="px-2 py-1 text-sm font-semibold text-gray-500">£{item.total_price.toFixed(2)}</div>
