@@ -21,6 +21,8 @@ interface ShoppingState {
   updateQuantity: (id: string, quantity: number) => Promise<void>;
   togglePurchased: (id: string, is_purchased: boolean) => Promise<void>;
   clearPurchased: () => Promise<void>;
+  updateItem: (id: string, updates: Partial<ShoppingItem>) => Promise<void>;
+  deleteItem: (id: string) => Promise<void>;
 }
 
 export const useShoppingStore = create<ShoppingState>((set, get) => ({
@@ -138,6 +140,38 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
         
       if (error) throw error;
       set({ items: get().items.filter(i => !i.is_purchased) });
+    } catch (err: any) {
+      console.error(err);
+      throw err;
+    }
+  },
+
+  updateItem: async (id, updates) => {
+    try {
+      const { data, error } = await supabase
+        .from('shopping_items')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      set({ items: get().items.map(i => i.id === id ? (data as ShoppingItem) : i) });
+    } catch (err: any) {
+      console.error(err);
+      throw err;
+    }
+  },
+
+  deleteItem: async (id) => {
+    try {
+      const { error } = await supabase
+        .from('shopping_items')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      set({ items: get().items.filter(i => i.id !== id) });
     } catch (err: any) {
       console.error(err);
       throw err;

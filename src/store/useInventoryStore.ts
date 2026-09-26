@@ -24,6 +24,8 @@ interface InventoryState {
   addItem: (item: Partial<InventoryItem>) => Promise<void>;
   updateQuantity: (id: string, newQuantity: number) => Promise<void>;
   consumeItem: (id: string, amount: number) => Promise<void>;
+  updateItem: (id: string, updates: Partial<InventoryItem>) => Promise<void>;
+  deleteItem: (id: string) => Promise<void>;
 }
 
 export const useInventoryStore = create<InventoryState>((set, get) => ({
@@ -100,6 +102,48 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       set({
         items: get().items.map(i => i.id === id ? { ...i, quantity: i.quantity - amount } : i)
       });
+    } catch (err: any) {
+      console.error(err);
+      throw err;
+    }
+  },
+
+  updateItem: async (id, updates) => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .update({
+           ...updates,
+           category_id: updates.category_id === '' ? null : updates.category_id,
+           updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      set({ items: get().items.map(i => i.id === id ? (data as InventoryItem) : i) });
+    } catch (err: any) {
+      console.error(err);
+      throw err;
+    }
+  },
+
+  deleteItem: async (id) => {
+    try {
+      const { error } = await supabase
+        .from('inventory_items')
+        .delete()
+        .eq('id', id);
+        
+      if (error) {
+        if (error.code === '23503') {
+          throw new Error("Cannot delete item because it has existing purchase history. Please set quantity to 0 instead.");
+        }
+        throw error;
+      }
+      
+      set({ items: get().items.filter(i => i.id !== id) });
     } catch (err: any) {
       console.error(err);
       throw err;
