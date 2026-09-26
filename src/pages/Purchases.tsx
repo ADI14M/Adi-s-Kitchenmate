@@ -3,6 +3,7 @@ import { usePurchaseStore } from '../store/usePurchaseStore';
 import { useShoppingStore } from '../store/useShoppingStore';
 import { Plus, X, ShoppingBag } from 'lucide-react';
 import { format } from 'date-fns';
+import { DecimalInput } from '../components/DecimalInput';
 
 export default function Purchases() {
   const { purchases, fetchPurchases, loading } = usePurchaseStore();
@@ -93,7 +94,13 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      await recordPurchase(store, date, totalAmount, notes, items.filter(i => i.name.trim() !== ''));
+      const formattedItems = items.filter(i => i.name.trim() !== '').map(i => ({
+        ...i,
+        quantity: Number(i.quantity) || 0,
+        unit_price: Number(i.unit_price) || 0,
+        total_price: Number(i.total_price) || 0
+      }));
+      await recordPurchase(store, date, totalAmount, notes, formattedItems);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to record purchase');
@@ -144,13 +151,13 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
                     <input required placeholder="Item name" value={item.name} onChange={e => handleItemChange(i, 'name', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
                   </div>
                   <div className="w-16">
-                    <input required type="number" min="0.001" step="0.001" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(i, 'quantity', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
+                    <DecimalInput required placeholder="Qty" value={item.quantity} onChange={val => handleItemChange(i, 'quantity', val)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
                   </div>
                   <div className="w-16">
                     <input placeholder="Unit" value={item.unit} onChange={e => handleItemChange(i, 'unit', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
                   </div>
                   <div className="w-20">
-                    <input required type="number" min="0" step="0.001" placeholder="Price £" value={item.unit_price} onChange={e => handleItemChange(i, 'unit_price', e.target.value)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
+                    <DecimalInput required placeholder="Price £" value={item.unit_price} onChange={val => handleItemChange(i, 'unit_price', val)} className="w-full px-2 py-1 text-sm rounded bg-white dark:bg-gray-700 border-none focus:ring-1 focus:ring-primary" />
                   </div>
                   <div className="w-20">
                     <div className="px-2 py-1 text-sm font-semibold text-gray-500">£{item.total_price.toFixed(2)}</div>

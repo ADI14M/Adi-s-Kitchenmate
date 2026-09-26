@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useInventoryStore } from '../store/useInventoryStore';
 import type { InventoryItem } from '../store/useInventoryStore';
 import { Plus, Minus, Search, AlertCircle, X } from 'lucide-react';
-
+import { DecimalInput } from '../components/DecimalInput';
 export default function Inventory() {
   const { items, fetchItems, loading, updateQuantity, consumeItem, addItem } = useInventoryStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -130,9 +130,9 @@ function InventoryCard({
 
 function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: any) => Promise<void> }) {
   const [name, setName] = useState('');
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<string|number>(1);
   const [unit, setUnit] = useState('pieces');
-  const [minQuantity, setMinQuantity] = useState(0);
+  const [minQuantity, setMinQuantity] = useState<string|number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
 
@@ -141,7 +141,7 @@ function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: a
     setLoading(true);
     setError(null);
     try {
-      await onAdd({ name, quantity, unit, min_quantity: minQuantity });
+      await onAdd({ name, quantity: Number(quantity)||0, unit, min_quantity: Number(minQuantity)||0 });
     } catch (err: any) {
       setError(err.message || 'Failed to add item');
       setLoading(false);
@@ -169,7 +169,7 @@ function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: a
           <div className="flex gap-4">
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Quantity</label>
-              <input required type="number" min="0" step="0.001" value={quantity} onChange={e => setQuantity(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary" />
+              <DecimalInput required value={quantity} onChange={setQuantity} className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary" />
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Unit</label>
@@ -179,7 +179,7 @@ function AddItemModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: a
 
           <div>
             <label className="block text-sm font-medium mb-1">Min Quantity (Low Stock Alert)</label>
-            <input required type="number" min="0" step="0.001" value={minQuantity} onChange={e => setMinQuantity(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary" />
+            <DecimalInput required value={minQuantity} onChange={setMinQuantity} className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary" />
           </div>
 
           <button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors mt-2">

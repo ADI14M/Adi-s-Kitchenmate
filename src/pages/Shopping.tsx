@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useShoppingStore } from '../store/useShoppingStore';
 import { Check, ShoppingBag, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
+import { DecimalInput } from '../components/DecimalInput';
 export default function Shopping() {
   const { items, fetchItems, loading, togglePurchased, clearPurchased, addItem } = useShoppingStore();
   const navigate = useNavigate();
@@ -121,7 +121,7 @@ export default function Shopping() {
 
 function AddShoppingModal({ onClose, onAdd }: { onClose: () => void, onAdd: (item: any) => Promise<void> }) {
   const [name, setName] = useState('');
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<string|number>(1);
   const [unit, setUnit] = useState('pieces');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
@@ -131,7 +131,7 @@ function AddShoppingModal({ onClose, onAdd }: { onClose: () => void, onAdd: (ite
     setLoading(true);
     setError(null);
     try {
-      await onAdd({ name, quantity, unit });
+      await onAdd({ name, quantity: Number(quantity) || 0, unit });
     } catch (err: any) {
       setError(err.message || 'Failed to add item');
       setLoading(false);
@@ -159,7 +159,7 @@ function AddShoppingModal({ onClose, onAdd }: { onClose: () => void, onAdd: (ite
           <div className="flex gap-4">
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Quantity</label>
-              <input required type="number" min="0.001" step="0.001" value={quantity} onChange={e => setQuantity(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary" />
+              <DecimalInput required value={quantity} onChange={setQuantity} className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border-none focus:ring-2 focus:ring-primary" />
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Unit</label>
