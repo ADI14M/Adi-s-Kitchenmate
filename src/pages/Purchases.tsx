@@ -38,17 +38,45 @@ export default function Purchases() {
       ) : (
         <div className="space-y-4">
           {purchases.map(purchase => (
-            <div key={purchase.id} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-bold text-lg">{purchase.store}</h3>
-                  <p className="text-sm text-gray-500">{format(new Date(purchase.purchase_date), 'dd MMM yyyy')}</p>
+            <div 
+              key={purchase.id} 
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:border-primary/50 transition-colors overflow-hidden flex flex-col"
+            >
+              <div 
+                className="p-4 cursor-pointer flex-1" 
+                onClick={() => setViewingPurchase(purchase)}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 className="font-bold text-lg">{purchase.store}</h3>
+                    <p className="text-sm text-gray-500">{format(new Date(purchase.purchase_date), 'dd MMM yyyy')}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-lg text-primary">£{purchase.total_amount.toFixed(2)}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-lg text-primary">£{purchase.total_amount.toFixed(2)}</p>
-                </div>
+                {purchase.notes && <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{purchase.notes}</p>}
               </div>
-              {purchase.notes && <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{purchase.notes}</p>}
+              <div className="bg-gray-50 dark:bg-gray-800/80 px-4 py-2 flex justify-end gap-2 border-t border-gray-100 dark:border-gray-700">
+                <button 
+                  onClick={() => setViewingPurchase(purchase)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-200 dark:border-gray-600"
+                >
+                  <ShoppingBag size={14} /> View
+                </button>
+                <button 
+                  onClick={() => setEditingPurchase(purchase)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-blue-100 dark:border-blue-800/30"
+                >
+                  <Pencil size={14} /> Edit
+                </button>
+                <button 
+                  onClick={() => setPurchaseToDelete(purchase)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-lg transition-colors border border-red-100 dark:border-red-800/30"
+                >
+                  <Trash2 size={14} /> Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>
