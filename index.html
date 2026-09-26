@@ -7,6 +7,25 @@
     <title>adi-s-kitchenmate</title>
   </head>
   <body>
+    <script>
+      (function() {
+        try {
+          var stateStr = localStorage.getItem('kitchenmate-settings');
+          var theme = 'system';
+          if (stateStr) {
+            var state = JSON.parse(stateStr);
+            if (state && state.state && state.state.theme) {
+              theme = state.state.theme;
+            }
+          }
+          if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

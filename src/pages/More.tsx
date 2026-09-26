@@ -14,9 +14,9 @@ export default function More() {
         <Link to="/analytics" className="block bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm font-medium">
           Analytics & Comparisons
         </Link>
-        <div className="block bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm font-medium">
+        <Link to="/settings" className="block bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
           Settings
-        </div>
+        </Link>
         <button 
           onClick={() => signOut()}
           className="block w-full text-left bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm font-medium text-red-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
