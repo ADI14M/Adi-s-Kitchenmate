@@ -51,6 +51,36 @@ const MONTH_SHORT_NAMES = [
 ];
 
 /**
+ * Converts a monetary purchase total into exact integer pence using
+ * the application's established purchase-total rounding rule (matching
+ * Number(total_amount).toFixed(2) as displayed on the Purchases page).
+ *
+ * This prevents discrepancies between the sum of displayed purchase totals
+ * and aggregated analytics caused by unrounded fractions or floating-point errors.
+ */
+export function getPurchaseAmountInPence(val: number | string | null | undefined): number {
+  if (val === null || val === undefined || val === '') return 0;
+  const num = typeof val === 'number' ? val : parseFloat(String(val));
+  if (isNaN(num)) return 0;
+
+  // Use toFixed(2) to align exactly with individual purchase card display
+  const fixedStr = num.toFixed(2);
+  const [whole, dec = '00'] = fixedStr.split('.');
+  const wholeInt = parseInt(whole, 10) || 0;
+  const decInt = parseInt(dec.padEnd(2, '0').slice(0, 2), 10) || 0;
+  const sign = wholeInt < 0 || fixedStr.startsWith('-') ? -1 : 1;
+
+  return sign * (Math.abs(wholeInt) * 100 + decInt);
+}
+
+/**
+ * Converts integer pence to a 2-decimal GBP pounds value.
+ */
+export function penceToPounds(pence: number): number {
+  return Math.round(pence) / 100;
+}
+
+/**
  * Extracts the calendar date parts in the Europe/London timezone.
  */
 export function getLondonDateParts(date: Date = new Date()): { year: number; month: number; day: number; ymd: string } {
@@ -161,32 +191,38 @@ function calculatePeriodComparison(
   currentRange: DateRange,
   previousRange: DateRange
 ): PeriodComparison {
-  const currentAmount = roundToTwo(
-    currentPurchases.reduce((acc, p) => acc + (Number(p.total_amount) || 0), 0)
+  const currentPence = currentPurchases.reduce(
+    (acc, p) => acc + getPurchaseAmountInPence(p.total_amount),
+    0
   );
-  const previousAmount = roundToTwo(
-    previousPurchases.reduce((acc, p) => acc + (Number(p.total_amount) || 0), 0)
+  const previousPence = previousPurchases.reduce(
+    (acc, p) => acc + getPurchaseAmountInPence(p.total_amount),
+    0
   );
-  const diffAmount = roundToTwo(currentAmount - previousAmount);
+
+  const currentAmount = penceToPounds(currentPence);
+  const previousAmount = penceToPounds(previousPence);
+  const diffPence = currentPence - previousPence;
+  const diffAmount = penceToPounds(diffPence);
 
   let percentageChange: number | null = null;
   let status: ComparisonStatus = 'none';
   let helperText: string | undefined;
 
-  if (previousAmount > 0) {
-    percentageChange = roundToTwo(((currentAmount - previousAmount) / previousAmount) * 100);
-    if (diffAmount > 0) {
+  if (previousPence > 0) {
+    percentageChange = roundToTwo((diffPence / previousPence) * 100);
+    if (diffPence > 0) {
       status = 'increase';
-    } else if (diffAmount < 0) {
+    } else if (diffPence < 0) {
       status = 'decrease';
     } else {
       status = 'equal';
       helperText = 'Same spending as previous period';
     }
-  } else if (previousAmount === 0 && currentAmount > 0) {
+  } else if (previousPence === 0 && currentPence > 0) {
     status = 'new';
     helperText = 'No spending recorded in previous period';
-  } else if (previousAmount === 0 && currentAmount === 0) {
+  } else if (previousPence === 0 && currentPence === 0) {
     status = 'none';
     helperText = 'No spending recorded in either period';
   }
@@ -211,13 +247,17 @@ export function computeAnalytics(
 ): AnalyticsSummary {
   const ranges = getLondonCalendarRanges(referenceDate);
 
-  // Total Spending
-  const totalSpending = roundToTwo(
-    purchases.reduce((acc, p) => acc + (Number(p.total_amount) || 0), 0)
+  // Total Spending in integer pence
+  const totalSpendingPence = purchases.reduce(
+    (acc, p) => acc + getPurchaseAmountInPence(p.total_amount),
+    0
   );
+  const totalSpending = penceToPounds(totalSpendingPence);
   const totalPurchasesCount = purchases.length;
   const averageOrderValue =
-    totalPurchasesCount > 0 ? roundToTwo(totalSpending / totalPurchasesCount) : 0;
+    totalPurchasesCount > 0
+      ? penceToPounds(Math.round(totalSpendingPence / totalPurchasesCount))
+      : 0;
 
   // Filter purchases for week comparison
   const thisWeekPurchases = purchases.filter(
@@ -249,23 +289,23 @@ export function computeAnalytics(
     ranges.lastMonth
   );
 
-  // Store Breakdown
-  const storeMap = new Map<string, { total: number; count: number; latestDate: string }>();
+  // Store Breakdown using integer pence to guarantee exact sum match
+  const storeMap = new Map<string, { totalPence: number; count: number; latestDate: string }>();
 
   for (const purchase of purchases) {
     const store = (purchase.store || 'Unknown Store').trim();
-    const amount = Number(purchase.total_amount) || 0;
+    const pence = getPurchaseAmountInPence(purchase.total_amount);
     const existing = storeMap.get(store);
 
     if (existing) {
-      existing.total += amount;
+      existing.totalPence += pence;
       existing.count += 1;
       if (purchase.purchase_date > existing.latestDate) {
         existing.latestDate = purchase.purchase_date;
       }
     } else {
       storeMap.set(store, {
-        total: amount,
+        totalPence: pence,
         count: 1,
         latestDate: purchase.purchase_date || '',
       });
@@ -274,14 +314,16 @@ export function computeAnalytics(
 
   const storeBreakdown: StoreSpending[] = Array.from(storeMap.entries())
     .map(([store, data]) => {
-      const roundedTotal = roundToTwo(data.total);
+      const totalAmount = penceToPounds(data.totalPence);
       const percentage =
-        totalSpending > 0 ? roundToTwo((roundedTotal / totalSpending) * 100) : 0;
-      const avg = roundToTwo(roundedTotal / data.count);
+        totalSpendingPence > 0
+          ? roundToTwo((data.totalPence / totalSpendingPence) * 100)
+          : 0;
+      const avg = penceToPounds(Math.round(data.totalPence / data.count));
 
       return {
         store,
-        totalAmount: roundedTotal,
+        totalAmount,
         percentage,
         purchaseCount: data.count,
         averagePerPurchase: avg,
