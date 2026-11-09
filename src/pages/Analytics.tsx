@@ -189,9 +189,9 @@ export default function Analytics() {
               </div>
             </div>
 
-            {/* 2. This Week vs Last Week Card */}
+            {/* 2. Rolling Grocery Cycle vs Previous Cycle Card */}
             <ComparisonStatCard
-              title="This Week"
+              title={analytics.grocerySummary.activeCycle ? "Current Cycle" : "This Week"}
               comparison={analytics.thisWeekVsLastWeek}
               periodType="week"
             />
@@ -206,9 +206,9 @@ export default function Analytics() {
 
           {/* Deep Dive Comparisons: Side-by-Side Breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Week Comparison Detail Card */}
+            {/* Cycle Comparison Detail Card */}
             <ComparisonDetailCard
-              title="Weekly Trend Analysis"
+              title={analytics.grocerySummary.activeCycle ? "Cycle Trend Analysis" : "Weekly Trend Analysis"}
               comparison={analytics.thisWeekVsLastWeek}
               periodType="week"
             />
@@ -380,7 +380,8 @@ function ComparisonStatCard({
   comparison: PeriodComparison;
   periodType: 'week' | 'month';
 }) {
-  const previousLabel = periodType === 'week' ? 'last week' : 'last month';
+  const isCycle = comparison.currentRange.label.includes('Cycle');
+  const previousLabel = periodType === 'week' ? (isCycle ? 'previous cycle' : 'last week') : 'last month';
 
   return (
     <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between hover:border-gray-200 dark:hover:border-gray-600 transition-colors">
@@ -473,8 +474,9 @@ function ComparisonDetailCard({
   comparison: PeriodComparison;
   periodType: 'week' | 'month';
 }) {
-  const currentTitle = periodType === 'week' ? 'This Week' : 'This Month';
-  const previousTitle = periodType === 'week' ? 'Last Week' : 'Last Month';
+  const isCycle = comparison.currentRange.label.includes('Cycle');
+  const currentTitle = periodType === 'week' ? (isCycle ? 'Current Cycle' : 'This Week') : 'This Month';
+  const previousTitle = periodType === 'week' ? (isCycle ? 'Previous Cycle' : 'Last Week') : 'Last Month';
 
   // Calculate relative proportion for the visual bar
   const totalBoth = comparison.currentAmount + comparison.previousAmount;

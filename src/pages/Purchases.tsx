@@ -57,12 +57,12 @@ export default function Purchases() {
                       <h3 className="font-bold text-lg">{purchase.store}</h3>
                       {purchase.purchase_type === 'main' && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
-                          <ShoppingBag size={11} /> Main Shopping
+                          <ShoppingBag size={11} /> Weekly Shop
                         </span>
                       )}
                       {purchase.purchase_type === 'top_up' && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40">
-                          <Plus size={11} /> Top-Up
+                          <Plus size={11} /> Small Top-Up
                         </span>
                       )}
                       {!purchase.purchase_type && (
@@ -76,16 +76,16 @@ export default function Purchases() {
                             type="button"
                             onClick={() => classifyPurchase(purchase.id, 'main')}
                             className="font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
-                            title="Classify as Main Shopping"
+                            title="Classify as Weekly Grocery Shop"
                           >
-                            Set Main
+                            Set Weekly Shop
                           </button>
                           <span className="text-gray-300 dark:text-gray-600">|</span>
                           <button 
                             type="button"
                             onClick={() => classifyPurchase(purchase.id, 'top_up')}
                             className="font-bold text-blue-700 dark:text-blue-400 hover:underline"
-                            title="Classify as Top-Up Shopping"
+                            title="Classify as Small Top-Up"
                           >
                             Set Top-Up
                           </button>
@@ -145,12 +145,23 @@ export default function Purchases() {
 }
 
 function AddPurchaseModal({ onClose }: { onClose: () => void }) {
-  const { recordPurchase } = usePurchaseStore();
+  const { recordPurchase, purchases } = usePurchaseStore();
   const { items: shoppingItems } = useShoppingStore();
   
   const [store, setStore] = useState('Tesco');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [purchaseType, setPurchaseType] = useState<'main' | 'top_up'>('main');
+  const [purchaseType, setPurchaseType] = useState<'main' | 'top_up'>(() => {
+    // If a weekly grocery shop occurred within the last 5 days, default new entry to small top-up
+    const sortedMain = purchases
+      .filter(p => p.purchase_type === 'main')
+      .sort((a, b) => b.purchase_date.localeCompare(a.purchase_date));
+    if (sortedMain.length > 0) {
+      const todayYMD = new Date().toISOString().split('T')[0];
+      const diffDays = Math.abs((new Date(todayYMD).getTime() - new Date(sortedMain[0].purchase_date).getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays < 5) return 'top_up';
+    }
+    return 'main';
+  });
   const [notes, setNotes] = useState('');
   
   const activeShopping = shoppingItems.filter(i => !i.is_purchased);
@@ -221,7 +232,7 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-bold text-sm text-emerald-700 dark:text-emerald-400">
-                  <ShoppingBag size={15} /> Main Shopping
+                  <ShoppingBag size={15} /> Weekly Grocery Shop
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
                   Starts / resets rolling 7-day grocery cycle
@@ -237,7 +248,7 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-bold text-sm text-blue-700 dark:text-blue-400">
-                  <Plus size={15} /> Top-Up Shopping
+                  <Plus size={15} /> Small Top-Up
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
                   Adds to cycle without changing dates
@@ -501,7 +512,7 @@ function EditPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-bold text-sm text-emerald-700 dark:text-emerald-400">
-                  <ShoppingBag size={15} /> Main Shopping
+                  <ShoppingBag size={15} /> Weekly Grocery Shop
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
                   Starts / resets rolling 7-day grocery cycle
@@ -517,7 +528,7 @@ function EditPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-bold text-sm text-blue-700 dark:text-blue-400">
-                  <Plus size={15} /> Top-Up Shopping
+                  <Plus size={15} /> Small Top-Up
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
                   Adds to cycle without changing dates

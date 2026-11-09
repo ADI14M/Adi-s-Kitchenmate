@@ -1,4 +1,5 @@
 import type { PurchaseRecord } from '../store/usePurchaseStore';
+import { computeGroceryCycles, type GroceryCycleSummary } from './groceryCycleUtils.ts';
 
 export interface DateRange {
   start: string; // YYYY-MM-DD
@@ -38,6 +39,7 @@ export interface AnalyticsSummary {
   thisMonthVsLastMonth: PeriodComparison;
   storeBreakdown: StoreSpending[];
   londonToday: string;
+  grocerySummary: GroceryCycleSummary;
 }
 
 const MONTH_NAMES = [
@@ -259,20 +261,72 @@ export function computeAnalytics(
       ? penceToPounds(Math.round(totalSpendingPence / totalPurchasesCount))
       : 0;
 
-  // Filter purchases for week comparison
-  const thisWeekPurchases = purchases.filter(
-    (p) => p.purchase_date >= ranges.thisWeek.start && p.purchase_date <= ranges.thisWeek.end
-  );
-  const lastWeekPurchases = purchases.filter(
-    (p) => p.purchase_date >= ranges.lastWeek.start && p.purchase_date <= ranges.lastWeek.end
-  );
+  const grocerySummary = computeGroceryCycles(purchases, 20, 2, referenceDate);
 
-  const thisWeekVsLastWeek = calculatePeriodComparison(
-    thisWeekPurchases,
-    lastWeekPurchases,
-    ranges.thisWeek,
-    ranges.lastWeek
-  );
+  let thisWeekVsLastWeek: PeriodComparison;
+  if (grocerySummary.activeCycle) {
+    const active = grocerySummary.activeCycle;
+    const closed = grocerySummary.closedCycles;
+    const lastClosed = closed.length > 0 ? closed[closed.length - 1] : null;
+
+    const [ay, am, ad] = active.startDate.split('-').map(Number);
+    const activeStartDateObj = new Date(Date.UTC(ay, am - 1, ad));
+    const [ey, em, ed] = active.endDate.split('-').map(Number);
+    const activeEndDateObj = new Date(Date.UTC(ey, em - 1, ed));
+
+    const currentRange: DateRange = {
+      start: active.startDate,
+      end: active.endDate,
+      label: `${formatDayMonth(activeStartDateObj)} – ${formatDayMonthYear(activeEndDateObj)} (Cycle #${active.cycleIndex})`,
+    };
+
+    let previousRange: DateRange;
+    if (lastClosed) {
+      const [py, pm, pd] = lastClosed.startDate.split('-').map(Number);
+      const prevStartDateObj = new Date(Date.UTC(py, pm - 1, pd));
+      const closedEndDateStr = lastClosed.actualNextShoppingDate || lastClosed.endDate;
+      const [pey, pem, ped] = closedEndDateStr.split('-').map(Number);
+      const prevEndDateObj = new Date(Date.UTC(pey, pem - 1, ped));
+
+      previousRange = {
+        start: lastClosed.startDate,
+        end: closedEndDateStr,
+        label: `${formatDayMonth(prevStartDateObj)} – ${formatDayMonthYear(prevEndDateObj)} (Cycle #${lastClosed.cycleIndex})`,
+      };
+    } else {
+      previousRange = {
+        start: '',
+        end: '',
+        label: 'Previous Cycle',
+      };
+    }
+
+    thisWeekVsLastWeek = calculatePeriodComparison(
+      active.allPurchases,
+      lastClosed ? lastClosed.allPurchases : [],
+      currentRange,
+      previousRange
+    );
+
+    if (!lastClosed && active.allPurchases.length > 0) {
+      thisWeekVsLastWeek.helperText = 'First active rolling grocery cycle';
+    }
+  } else {
+    // Fallback purchases for week comparison if no main grocery cycle recorded
+    const thisWeekPurchases = purchases.filter(
+      (p) => p.purchase_date >= ranges.thisWeek.start && p.purchase_date <= ranges.thisWeek.end
+    );
+    const lastWeekPurchases = purchases.filter(
+      (p) => p.purchase_date >= ranges.lastWeek.start && p.purchase_date <= ranges.lastWeek.end
+    );
+
+    thisWeekVsLastWeek = calculatePeriodComparison(
+      thisWeekPurchases,
+      lastWeekPurchases,
+      ranges.thisWeek,
+      ranges.lastWeek
+    );
+  }
 
   // Filter purchases for month comparison
   const thisMonthPurchases = purchases.filter(
@@ -340,5 +394,6 @@ export function computeAnalytics(
     thisMonthVsLastMonth,
     storeBreakdown,
     londonToday: ranges.londonToday,
+    grocerySummary,
   };
 }

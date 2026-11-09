@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   History,
   ShoppingBag,
+  ShieldCheck,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -28,14 +29,17 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
   const [showUnclassified, setShowUnclassified] = useState(false);
 
   const summary = useMemo(() => {
-    return computeGroceryCycles(purchases);
+    return computeGroceryCycles(purchases, 20, 2);
   }, [purchases]);
 
   const {
     activeCycle,
     closedCycles,
     unclassifiedPurchases,
-    weeklyBudgetPounds,
+    baseBudgetPounds,
+    extraAllowancePounds,
+    maxBudgetPounds,
+    totalPreviousExtraDaysSaved,
     previousCumulativePounds,
     previousCumulativeStatus,
     previousCumulativePence,
@@ -56,7 +60,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
           <div>
             <h2 className="text-lg font-bold">Rolling Grocery Cycle & Budget Tracker</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Automatically resets every 7 days from your Main Grocery Shopping with £{weeklyBudgetPounds} weekly budget
+              Automatically resets every 7 days from your Weekly Grocery Shopping with £{baseBudgetPounds} base budget + £{extraAllowancePounds} extra allowance buffer
             </p>
           </div>
         </div>
@@ -66,7 +70,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
             No grocery cycle started yet
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            When you record a purchase, choose <strong>Main Shopping</strong> to kick off your rolling 7-day grocery cycle. Any <strong>Top-Up Shopping</strong> will count towards your £{weeklyBudgetPounds} budget without resetting your next shopping due date.
+            When you record your shopping, select <strong>Weekly Grocery Shopping</strong> to start your rolling 7-day grocery cycle. Any <strong>Small Top-Up Shopping</strong> will count towards your £{baseBudgetPounds} + £{extraAllowancePounds} budget without resetting your next shopping due date.
           </p>
         </div>
 
@@ -96,7 +100,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
                         onClick={() => classifyPurchase(p.id, 'main')}
                         className="px-2 py-0.5 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 font-semibold text-[11px]"
                       >
-                        Main
+                        Weekly Shop
                       </button>
                       <button
                         onClick={() => classifyPurchase(p.id, 'top_up')}
@@ -115,13 +119,10 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
     );
   }
 
-  // Active cycle metrics
   const cycle = activeCycle!;
-  const percentSpent = Math.min(100, Math.round((cycle.spendingPounds / cycle.budgetPounds) * 100));
 
   return (
     <div className="space-y-4">
-      {/* Main Container Card */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-6">
         
         {/* Header */}
@@ -134,34 +135,45 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
                 Active Cycle #{cycle.cycleIndex}
               </span>
+              {totalPreviousExtraDaysSaved > 0 && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-800/40 flex items-center gap-1">
+                  <Award size={11} /> {totalPreviousExtraDaysSaved} extra days saved previously
+                </span>
+              )}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Started {format(new Date(cycle.startDate), 'd MMMM yyyy')} · Next shopping due {format(new Date(cycle.expectedNextShoppingDate), 'd MMMM yyyy')}
+              Cycle started <strong>{format(new Date(cycle.startDate), 'd MMMM yyyy')}</strong> · Next shopping due <strong>{format(new Date(cycle.expectedNextShoppingDate), 'd MMMM yyyy')}</strong>
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-              Weekly Budget: <strong className="text-gray-900 dark:text-gray-100">£{weeklyBudgetPounds.toFixed(2)}</strong>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="px-2.5 py-1 rounded-lg bg-gray-50 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 font-medium border border-gray-200/60 dark:border-gray-700">
+              Base: <strong>£{baseBudgetPounds}</strong>
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium border border-blue-200 dark:border-blue-800/40">
+              Buffer: <strong>+£{extraAllowancePounds}</strong>
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800/40">
+              Max: <strong>£{maxBudgetPounds}</strong>
             </span>
           </div>
         </div>
 
-        {/* Celebratory Achievement Banner if Extra Days Maintained */}
+        {/* Celebratory Achievement Banner if Groceries Lasted Extra Days */}
         {cycle.extraDaysMaintained > 0 && (
-          <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border border-emerald-500/20 text-emerald-900 dark:text-emerald-200 flex items-start gap-3 shadow-sm animate-in fade-in duration-300">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+          <div className="p-4 rounded-xl bg-gradient-to-r from-teal-500/10 via-emerald-500/10 to-teal-500/10 border border-teal-500/20 text-teal-900 dark:text-teal-200 flex items-start gap-3 shadow-sm animate-in fade-in duration-300">
+            <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
               <Award size={20} />
             </div>
             <div className="space-y-0.5 flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-sm">Grocery Efficiency Achievement</h3>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-200/80 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.2 rounded-full bg-teal-200/80 text-teal-900 dark:bg-teal-900/60 dark:text-teal-200">
                   <Sparkles size={10} /> +{cycle.extraDaysMaintained} {cycle.extraDaysMaintained === 1 ? 'day' : 'days'}
                 </span>
               </div>
-              <p className="text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
-                Great! You managed to maintain your groceries for <strong>{cycle.extraDaysMaintained} extra {cycle.extraDaysMaintained === 1 ? 'day' : 'days'}</strong> past your 7-day target! Total days maintained: <strong>{cycle.totalDays} days</strong> at an average of <strong>£{cycle.averageDailySpendingPounds.toFixed(2)} / day</strong>.
+              <p className="text-xs text-teal-800 dark:text-teal-300 leading-relaxed">
+                <strong>Your groceries lasted {cycle.extraDaysMaintained} extra {cycle.extraDaysMaintained === 1 ? 'day' : 'days'}. Great savings!</strong> Your food supply has lasted {cycle.totalDays} days at an average of £{cycle.averageDailySpendingPounds.toFixed(2)}/day.
               </p>
             </div>
           </div>
@@ -170,7 +182,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
         {/* 3 Core Metric Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
-          {/* Card 1: Cycle Spending & Budget */}
+          {/* Card 1: Cycle Spending & £20 + £2 Allowance Breakdown */}
           <div className="bg-gray-50/80 dark:bg-gray-800/60 p-4 rounded-xl border border-gray-100 dark:border-gray-700/60 flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-center mb-1">
@@ -178,11 +190,13 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
                   Cycle Spending
                 </span>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                  cycle.isOverBudget 
-                    ? 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-400 border border-red-200 dark:border-red-800/40' 
+                  cycle.budgetStatusCategory === 'over_allowance'
+                    ? 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-400 border border-red-200 dark:border-red-800/40'
+                    : cycle.budgetStatusCategory === 'using_allowance'
+                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'
                     : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40'
                 }`}>
-                  {cycle.isOverBudget ? 'Over Budget' : 'Within Budget'}
+                  {cycle.budgetStatusCategory === 'over_allowance' ? 'Over Max Allowance' : cycle.budgetStatusCategory === 'using_allowance' ? 'Buffer Active' : 'Within Budget'}
                 </span>
               </div>
 
@@ -190,28 +204,41 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
                 <span className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
                   £{cycle.spendingPounds.toFixed(2)}
                 </span>
-                <span className="text-xs text-gray-500">/ £{cycle.budgetPounds.toFixed(2)}</span>
+                <span className="text-xs text-gray-500">/ £{cycle.baseBudgetPounds.toFixed(2)} base</span>
               </div>
 
-              {/* Progress Bar */}
-              <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden mt-3">
-                <div 
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    cycle.isOverBudget ? 'bg-red-500' : percentSpent > 80 ? 'bg-amber-500' : 'bg-emerald-500'
-                  }`}
-                  style={{ width: `${percentSpent}%` }}
+              {/* Multi-segment progress bar (£20 base + £2 buffer) */}
+              <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden mt-3 flex">
+                <div
+                  className={`h-full transition-all duration-500 ${cycle.isBaseExceeded ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                  style={{ width: `${Math.min(100, (Math.min(cycle.spendingPounds, 20) / 22) * 100)}%` }}
                 />
+                {cycle.allowanceUsedPence > 0 && (
+                  <div
+                    className="bg-amber-400 h-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, (cycle.allowanceUsedPounds / 22) * 100)}%` }}
+                  />
+                )}
+                {cycle.isOverMaxAllowance && (
+                  <div className="bg-red-500 h-full transition-all duration-500" style={{ width: '10%' }} />
+                )}
               </div>
 
-              {/* Remaining / Over Warning */}
+              {/* Status Message */}
               <div className="mt-3 text-xs">
-                {cycle.isOverBudget ? (
-                  <span className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">
-                    <AlertTriangle size={13} /> You are £{cycle.overBudgetPounds.toFixed(2)} over your £{cycle.budgetPounds} weekly budget.
-                  </span>
-                ) : (
+                {cycle.budgetStatusCategory === 'within_base' && (
                   <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 size={13} /> £{cycle.remainingBudgetPounds.toFixed(2)} remaining of your £{cycle.budgetPounds} weekly budget.
+                    <CheckCircle2 size={13} /> £{cycle.baseRemainingPounds.toFixed(2)} remaining of £{cycle.baseBudgetPounds} base budget.
+                  </span>
+                )}
+                {cycle.budgetStatusCategory === 'using_allowance' && (
+                  <span className="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <ShieldCheck size={13} /> £{cycle.allowanceUsedPounds.toFixed(2)} of £{cycle.extraAllowancePounds.toFixed(2)} extra allowance used (£{cycle.allowanceRemainingPounds.toFixed(2)} remaining).
+                  </span>
+                )}
+                {cycle.budgetStatusCategory === 'over_allowance' && (
+                  <span className="font-bold text-red-600 dark:text-red-400 flex items-center gap-1">
+                    <AlertTriangle size={13} /> You are £{cycle.overMaxPounds.toFixed(2)} over your weekly budget, including your £{cycle.extraAllowancePounds} extra allowance.
                   </span>
                 )}
               </div>
@@ -223,7 +250,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
             </div>
           </div>
 
-          {/* Card 2: Cumulative Balance (Savings/Deficit Carry-Forward) */}
+          {/* Card 2: Cumulative Balance (Continuous Carry-Forward) */}
           <div className="bg-gray-50/80 dark:bg-gray-800/60 p-4 rounded-xl border border-gray-100 dark:border-gray-700/60 flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-center mb-1">
@@ -254,7 +281,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
               </div>
 
               <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-snug">
-                Continuous rolling balance carrying forward all past savings and deficits.
+                Continuous rolling carry-forward across all grocery cycles.
               </p>
             </div>
 
@@ -262,7 +289,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
               <div className="flex justify-between text-gray-500 dark:text-gray-400">
                 <span>Previous Cycles:</span>
                 <span className={`font-semibold ${previousCumulativePence >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                  {previousCumulativePence >= 0 ? '+' : '-'}£{previousCumulativePounds.toFixed(2)} {previousCumulativeStatus === 'savings' ? 'savings' : previousCumulativeStatus === 'deficit' ? 'deficit' : ''}
+                  {previousCumulativePence >= 0 ? '+' : '-'}£{previousCumulativePounds.toFixed(2)} {previousCumulativeStatus}
                 </span>
               </div>
               <div className="flex justify-between text-gray-500 dark:text-gray-400">
@@ -274,12 +301,12 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
             </div>
           </div>
 
-          {/* Card 3: Cycle Timing & Efficiency */}
+          {/* Card 3: Timing & Days Elapsed / Remaining */}
           <div className="bg-gray-50/80 dark:bg-gray-800/60 p-4 rounded-xl border border-gray-100 dark:border-gray-700/60 flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-center mb-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Timing & Efficiency
+                  Timing & Days
                 </span>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                   cycle.daysOverdue > 0
@@ -292,28 +319,28 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
 
               <div className="mt-2 space-y-1.5 text-xs">
                 <div className="flex justify-between text-gray-600 dark:text-gray-300">
-                  <span>Last Main Shop:</span>
+                  <span>Cycle Start Date:</span>
                   <span className="font-semibold text-gray-900 dark:text-gray-100">
                     {format(new Date(cycle.startDate), 'dd MMM yyyy')}
                   </span>
                 </div>
                 <div className="flex justify-between text-gray-600 dark:text-gray-300">
-                  <span>Next Shopping Due:</span>
+                  <span>Expected Next Shop:</span>
                   <span className="font-semibold text-gray-900 dark:text-gray-100">
                     {format(new Date(cycle.expectedNextShoppingDate), 'dd MMM yyyy')}
                   </span>
                 </div>
                 <div className="flex justify-between text-gray-600 dark:text-gray-300">
-                  <span>Days Maintained:</span>
+                  <span>Days Elapsed:</span>
                   <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {cycle.totalDays} {cycle.totalDays === 1 ? 'day' : 'days'}
+                    {cycle.daysElapsed} {cycle.daysElapsed === 1 ? 'day' : 'days'}
                   </span>
                 </div>
               </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-gray-200/60 dark:border-gray-700/60 flex justify-between items-center text-[11px] text-gray-500 dark:text-gray-400">
-              <span>Avg Daily Spending:</span>
+              <span>Avg Daily Expenditure:</span>
               <span className="font-bold text-gray-900 dark:text-gray-100">
                 £{cycle.averageDailySpendingPounds.toFixed(2)} / day
               </span>
@@ -344,7 +371,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
                     <span className="font-semibold text-xs text-gray-900 dark:text-gray-100">{p.store}</span>
                     {p.purchase_type === 'main' ? (
                       <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
-                        Main
+                        Weekly Shop
                       </span>
                     ) : (
                       <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40">
@@ -391,7 +418,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
                         onClick={() => classifyPurchase(p.id, 'main')}
                         className="px-2 py-0.5 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 font-semibold text-[11px]"
                       >
-                        Main
+                        Weekly Shop
                       </button>
                       <button
                         onClick={() => classifyPurchase(p.id, 'top_up')}
@@ -407,7 +434,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
           </div>
         )}
 
-        {/* Closed / Historical Cycles Log Accordion */}
+        {/* Closed Cycles History Accordion */}
         {closedCycles.length > 0 && (
           <div className="pt-2 border-t border-gray-100 dark:border-gray-700/60">
             <button
@@ -435,7 +462,7 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
                         </span>
                         {c.extraDaysMaintained > 0 && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.2 rounded-full bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-800/40">
-                            +{c.extraDaysMaintained} extra {c.extraDaysMaintained === 1 ? 'day' : 'days'}
+                            +{c.extraDaysMaintained} extra days
                           </span>
                         )}
                       </div>
@@ -448,14 +475,14 @@ export default function GroceryCycleTracker({ purchases }: GroceryCycleTrackerPr
                             ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' 
                             : 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300'
                         }`}>
-                          {c.netPence >= 0 ? `+£${c.remainingBudgetPounds.toFixed(2)} savings` : `-£${c.overBudgetPounds.toFixed(2)} deficit`}
+                          {c.netPence >= 0 ? `+£${c.baseRemainingPounds.toFixed(2)} savings` : `-£${c.allowanceUsedPounds.toFixed(2)} deficit`}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-200/50 dark:border-gray-700/50">
-                      <span>{c.totalDays} days between shops · Avg £{c.averageDailySpendingPounds.toFixed(2)}/day</span>
-                      <span>{c.allPurchases.length} {c.allPurchases.length === 1 ? 'purchase' : 'purchases'} ({c.mainPurchases.length} main, {c.topUpPurchases.length} top-up)</span>
+                      <span>{c.efficiencyMessage} ({c.totalDays} days maintained)</span>
+                      <span>{c.allPurchases.length} {c.allPurchases.length === 1 ? 'purchase' : 'purchases'} (Avg £{c.averageDailySpendingPounds.toFixed(2)}/day)</span>
                     </div>
                   </div>
                 ))}
