@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { DecimalInput } from '../components/DecimalInput';
 
 export default function Purchases() {
-  const { purchases, fetchPurchases, loading } = usePurchaseStore();
+  const { purchases, fetchPurchases, loading, classifyPurchase } = usePurchaseStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewingPurchase, setViewingPurchase] = useState<PurchaseRecord | null>(null);
   const [editingPurchase, setEditingPurchase] = useState<PurchaseRecord | null>(null);
@@ -20,7 +20,12 @@ export default function Purchases() {
   return (
     <div className="space-y-6 pb-20 md:pb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Purchases</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Purchases</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            Record, classify, and manage grocery and store receipts
+          </p>
+        </div>
         <button 
           onClick={() => setShowAddModal(true)}
           className="bg-primary text-white px-4 py-2 rounded-xl font-medium shadow-sm hover:bg-primary-dark transition-colors whitespace-nowrap"
@@ -48,7 +53,45 @@ export default function Purchases() {
               >
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h3 className="font-bold text-lg">{purchase.store}</h3>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="font-bold text-lg">{purchase.store}</h3>
+                      {purchase.purchase_type === 'main' && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
+                          <ShoppingBag size={11} /> Main Shopping
+                        </span>
+                      )}
+                      {purchase.purchase_type === 'top_up' && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40">
+                          <Plus size={11} /> Top-Up
+                        </span>
+                      )}
+                      {!purchase.purchase_type && (
+                        <div 
+                          className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span>Unclassified</span>
+                          <span className="text-gray-300 dark:text-gray-600">·</span>
+                          <button 
+                            type="button"
+                            onClick={() => classifyPurchase(purchase.id, 'main')}
+                            className="font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
+                            title="Classify as Main Shopping"
+                          >
+                            Set Main
+                          </button>
+                          <span className="text-gray-300 dark:text-gray-600">|</span>
+                          <button 
+                            type="button"
+                            onClick={() => classifyPurchase(purchase.id, 'top_up')}
+                            className="font-bold text-blue-700 dark:text-blue-400 hover:underline"
+                            title="Classify as Top-Up Shopping"
+                          >
+                            Set Top-Up
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500">{format(new Date(purchase.purchase_date), 'dd MMM yyyy')}</p>
                   </div>
                   <div className="text-right">
@@ -82,7 +125,6 @@ export default function Purchases() {
         </div>
       )}
 
-      
       {showAddModal && (
         <AddPurchaseModal onClose={() => setShowAddModal(false)} />
       )}
@@ -98,20 +140,19 @@ export default function Purchases() {
       {purchaseToDelete && (
         <DeletePurchaseModal purchase={purchaseToDelete} onClose={() => setPurchaseToDelete(null)} />
       )}
-
     </div>
   );
 }
 
 function AddPurchaseModal({ onClose }: { onClose: () => void }) {
   const { recordPurchase } = usePurchaseStore();
-  const { items: shoppingItems } = useShoppingStore(); // We could auto-populate active items
+  const { items: shoppingItems } = useShoppingStore();
   
   const [store, setStore] = useState('Tesco');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [purchaseType, setPurchaseType] = useState<'main' | 'top_up'>('main');
   const [notes, setNotes] = useState('');
   
-  // Start with empty items or auto-populate from active shopping list
   const activeShopping = shoppingItems.filter(i => !i.is_purchased);
   const [items, setItems] = useState(
     activeShopping.length > 0 
@@ -126,7 +167,6 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
     const newItems = [...items];
     (newItems[index] as any)[field] = value;
     
-    // Auto calculate total
     if (field === 'unit_price' || field === 'quantity') {
       newItems[index].total_price = Number(newItems[index].quantity) * Number(newItems[index].unit_price);
     }
@@ -146,7 +186,7 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
         unit_price: Number(i.unit_price) || 0,
         total_price: Number(i.total_price) || 0
       }));
-      await recordPurchase(store, date, totalAmount, notes, formattedItems);
+      await recordPurchase(store, date, totalAmount, notes, formattedItems, purchaseType);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to record purchase');
@@ -167,6 +207,45 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
         {error && <p className="text-sm text-red-500 mb-4 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Purchase Type Selector */}
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Purchase Type</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setPurchaseType('main')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  purchaseType === 'main'
+                    ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                  <ShoppingBag size={15} /> Main Shopping
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
+                  Starts / resets rolling 7-day grocery cycle
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPurchaseType('top_up')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  purchaseType === 'top_up'
+                    ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 ring-2 ring-blue-500/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-sm text-blue-700 dark:text-blue-400">
+                  <Plus size={15} /> Top-Up Shopping
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
+                  Adds to cycle without changing dates
+                </p>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Store</label>
@@ -242,7 +321,7 @@ function AddPurchaseModal({ onClose }: { onClose: () => void }) {
 }
 
 function ViewPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, onClose: () => void }) {
-  const { getPurchaseItems } = usePurchaseStore();
+  const { getPurchaseItems, classifyPurchase } = usePurchaseStore();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -251,13 +330,42 @@ function ViewPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
       setItems(data);
       setLoading(false);
     });
-  }, [purchase.id]);
+  }, [purchase.id, getPurchaseItems]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
       <div className="bg-surface dark:bg-surface-dark w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 shadow-xl border border-gray-100 dark:border-gray-800">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold flex items-center gap-2"><ShoppingBag size={24} /> {purchase.store}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold flex items-center gap-2"><ShoppingBag size={24} /> {purchase.store}</h2>
+            {purchase.purchase_type === 'main' && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
+                Main Shopping
+              </span>
+            )}
+            {purchase.purchase_type === 'top_up' && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40">
+                Top-Up Shopping
+              </span>
+            )}
+            {!purchase.purchase_type && (
+              <div className="inline-flex items-center gap-2 text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40">
+                <span>Unclassified</span>
+                <button 
+                  onClick={() => classifyPurchase(purchase.id, 'main')}
+                  className="font-bold underline text-emerald-700 dark:text-emerald-400"
+                >
+                  Set Main
+                </button>
+                <button 
+                  onClick={() => classifyPurchase(purchase.id, 'top_up')}
+                  className="font-bold underline text-blue-700 dark:text-blue-400"
+                >
+                  Set Top-Up
+                </button>
+              </div>
+            )}
+          </div>
           <button onClick={onClose} className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
             <X size={20} />
           </button>
@@ -267,6 +375,12 @@ function ViewPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
           <div className="flex justify-between text-gray-500">
             <span>Date:</span>
             <span className="text-gray-900 dark:text-gray-100 font-medium">{format(new Date(purchase.purchase_date), 'dd MMM yyyy')}</span>
+          </div>
+          <div className="flex justify-between text-gray-500">
+            <span>Cycle Role:</span>
+            <span className="text-gray-900 dark:text-gray-100 font-medium">
+              {purchase.purchase_type === 'main' ? 'Resets 7-day grocery cycle' : purchase.purchase_type === 'top_up' ? 'Adds to active cycle spending' : 'Not classified'}
+            </span>
           </div>
           {purchase.notes && (
             <div className="flex justify-between text-gray-500">
@@ -309,6 +423,7 @@ function EditPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
   
   const [store, setStore] = useState(purchase.store);
   const [date, setDate] = useState(purchase.purchase_date.split('T')[0]);
+  const [purchaseType, setPurchaseType] = useState<'main' | 'top_up'>(purchase.purchase_type || 'main');
   const [notes, setNotes] = useState(purchase.notes || '');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -325,7 +440,7 @@ function EditPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
       })));
       setLoading(false);
     });
-  }, [purchase.id]);
+  }, [purchase.id, getPurchaseItems]);
 
   const handleItemChange = (index: number, field: string, value: any) => {
     const newItems = [...items];
@@ -349,7 +464,7 @@ function EditPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
         unit_price: Number(i.unit_price) || 0,
         total_price: Number(i.total_price) || 0
       }));
-      await updatePurchase(purchase.id, store, date, totalAmount, notes, formattedItems);
+      await updatePurchase(purchase.id, store, date, totalAmount, notes, formattedItems, purchaseType);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to update purchase');
@@ -357,7 +472,7 @@ function EditPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
     }
   };
 
-  if (loading) return null; // or a spinner
+  if (loading) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
@@ -372,6 +487,45 @@ function EditPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
         {error && <p className="text-sm text-red-500 mb-4 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Purchase Type Selector */}
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Purchase Type</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setPurchaseType('main')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  purchaseType === 'main'
+                    ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                  <ShoppingBag size={15} /> Main Shopping
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
+                  Starts / resets rolling 7-day grocery cycle
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPurchaseType('top_up')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  purchaseType === 'top_up'
+                    ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 ring-2 ring-blue-500/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-sm text-blue-700 dark:text-blue-400">
+                  <Plus size={15} /> Top-Up Shopping
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
+                  Adds to cycle without changing dates
+                </p>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Store</label>

@@ -4,6 +4,7 @@ import {
   computeAnalytics,
   type PeriodComparison,
 } from '../lib/analyticsUtils';
+import GroceryCycleTracker from '../components/GroceryCycleTracker';
 import {
   TrendingDown,
   TrendingUp,
@@ -146,11 +147,29 @@ export default function Analytics() {
         </div>
       ) : (
         /* Populated Analytics Dashboard */
-        <div className="space-y-6">
-          {/* Top 3 Metric Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* 1. Total Spending Card */}
-            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between hover:border-gray-200 dark:hover:border-gray-600 transition-colors">
+        <div className="space-y-8">
+          {/* 1. Dedicated Rolling Grocery Cycle & Weekly Budget Tracker */}
+          <section aria-label="Grocery Cycle Tracker">
+            <GroceryCycleTracker purchases={purchases} />
+          </section>
+
+          {/* 2. Calendar-Based Period Analytics (Monday–Sunday) */}
+          <section className="space-y-6" aria-label="Calendar Period Analytics">
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-gray-900 dark:text-gray-100">
+                  Calendar Period Analytics
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Fixed Monday–Sunday and calendar-month spending trends
+                </p>
+              </div>
+            </div>
+
+            {/* Top 3 Metric Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 1. Total Spending Card */}
+              <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between hover:border-gray-200 dark:hover:border-gray-600 transition-colors">
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -342,6 +361,7 @@ export default function Analytics() {
               })}
             </div>
           </div>
+          </section>
         </div>
       )}
     </div>
