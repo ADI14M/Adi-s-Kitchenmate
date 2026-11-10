@@ -146,7 +146,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     }
   },
 
-  updatePurchase: async (id, store, date, total, notes, items, purchaseType = 'main') => {
+  updatePurchase: async (id, store, date, total, notes, items, purchaseType) => {
     try {
       const scrubbedItems = items.map(item => ({
         ...item,
@@ -161,7 +161,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
         p_total_amount: total,
         p_notes: notes || null,
         p_items: scrubbedItems,
-        p_purchase_type: purchaseType || 'main',
+        p_purchase_type: purchaseType ?? null,
       });
       
       if (error) {

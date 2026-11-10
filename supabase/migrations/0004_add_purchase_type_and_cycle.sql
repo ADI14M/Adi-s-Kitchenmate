@@ -103,7 +103,7 @@ CREATE OR REPLACE FUNCTION update_purchase(
     p_total_amount NUMERIC,
     p_notes TEXT,
     p_items JSONB,
-    p_purchase_type TEXT DEFAULT 'main'
+    p_purchase_type TEXT DEFAULT NULL
 ) RETURNS VOID AS $$
 DECLARE
     v_old_item RECORD;
@@ -137,13 +137,13 @@ BEGIN
     -- Delete all old purchase items (we will recreate them)
     DELETE FROM purchase_items WHERE purchase_id = p_purchase_id;
 
-    -- Update purchase header including purchase_type
+    -- Update purchase header (preserves existing purchase_type if p_purchase_type is null)
     UPDATE purchases
     SET store = p_store, 
         purchase_date = p_purchase_date, 
         total_amount = p_total_amount, 
         notes = p_notes,
-        purchase_type = COALESCE(p_purchase_type, purchase_type, 'main')
+        purchase_type = CASE WHEN p_purchase_type IS NOT NULL THEN p_purchase_type ELSE purchase_type END
     WHERE id = p_purchase_id;
 
     -- Insert new items and apply to inventory

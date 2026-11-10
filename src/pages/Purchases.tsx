@@ -434,7 +434,7 @@ function EditPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
   
   const [store, setStore] = useState(purchase.store);
   const [date, setDate] = useState(purchase.purchase_date.split('T')[0]);
-  const [purchaseType, setPurchaseType] = useState<'main' | 'top_up'>(purchase.purchase_type || 'main');
+  const [purchaseType, setPurchaseType] = useState<'main' | 'top_up' | null>(purchase.purchase_type ?? null);
   const [notes, setNotes] = useState(purchase.notes || '');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -500,7 +500,23 @@ function EditPurchaseModal({ purchase, onClose }: { purchase: PurchaseRecord, on
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Purchase Type Selector */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Purchase Type</label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-sm font-medium">Purchase Type</label>
+              {purchaseType === null && (
+                <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                  Unclassified Legacy Record
+                </span>
+              )}
+              {purchaseType !== null && !purchase.purchase_type && (
+                <button
+                  type="button"
+                  onClick={() => setPurchaseType(null)}
+                  className="text-[11px] text-gray-500 hover:text-gray-700 underline"
+                >
+                  Keep Unclassified
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
